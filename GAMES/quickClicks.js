@@ -68,9 +68,29 @@ async function btnClick() {
 
 async function gameBackground() {
 
-	let pattern = ("\\_|_/-".repeat(13) + "\n").repeat(28);
-	await pc.text(pattern, 1, 1, 0, 0, 0);
-	console.log(pattern)
+	// let pattern = ("\\_|_/-".repeat(13) + "\n").repeat(28);
+
+	let patternA = "\\_|_/-";
+	let patternB = "_/-\\_|";
+	let lineA = "";
+	let lineB = "";
+	let bg = "";
+
+	for (let i = 0; i < 13; i++) {
+		lineA += patternA;
+		lineB += patternB;
+	}
+
+	for (let i = 0; i < 28; i++) {
+		if (i % 2 == 0) {
+			bg += lineA + "\n";
+		} else {
+			bg += lineB + "\n";
+		}
+	}
+
+	await pc.text(bg, 1, 1);
+	console.log(bg)
 }
 
 async function startGame() {
