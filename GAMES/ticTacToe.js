@@ -56,15 +56,18 @@ pc.text('│\n'.repeat(23), gridX + 17, gridY); // draw another vertical line
 let board = [
 	[' ', ' ', ' '],
 	[' ', ' ', ' '],
-	[' ', ' ', ' ']
+	[' ', ' ', ' '],
 ];
 
 let turnX = true;
 let scoreX = 0;
 let scoreO = 0;
+let singlePlayerMode = true;
+let aiLevel = 0;
+let challengeMode = false;
 
 function showScore() {
-	pc.text("Player X: " + scoreX + "\n" + "Player O: " + scoreO, 55, 5, 20)
+	pc.text('Player X: ' + scoreX + '\n' + 'Player O: ' + scoreO, 55, 5, 20);
 }
 
 function checkWinner(mark) {
@@ -97,19 +100,70 @@ function checkDraw() {
 	return true;
 }
 
-function startNewGame() {
+async function startNewGame() {
 	for (let row = 0; row < 3; row++) {
 		for (let col = 0; col < 3; col++) {
-			pc.text(bigSpace, gridX + col * 9, gridY + row * 8);
-			board[row][col] = " ";
+			await pc.text(bigSpace, gridX + col * 9, gridY + row * 8);
+			board[row][col] = ' ';
 		}
 	}
-	pc.text()
+	decideTurn();
 }
 
-async function btnClicked(row, col) {
+function aiTurn() {
+	if (aiLevel == 0) {
+		for (let row = 0; row < 3; row++) {
+			for (let col = 0; col < 3; col++) {
+				if (board[row][col] == ' ') {
+					takeTurn(row, col);
+					return;
+				}
+			}
+		}
+	}
+
+	if (aiLevel == 2) {
+		for (let row = 0; row < 3; row++) {
+			for (let col = 0; col < 3; col++) {
+				if (board[row][col] == ' ') {
+					board[row][col] = 'O';
+					log(board.join('\n'));
+					if (checkWinner('O')) {
+						board[row][col] = ' ';
+						takeTurn(row, col);
+						return;
+					}
+
+					board[row][col] = 'X';
+					log(board.join('\n'));
+					if (checkWinner('X')) {
+						board[row][col] = ' ';
+						takeTurn(row, col);
+						return;
+					}
+					board[row][col] = ' ';
+				}
+			}
+		}
+	}
+
+	let avail = [];
+	for (let row = 0; row < 3; row++) {
+		for (let col = 0; col < 3; col++) {
+			if (board[row][col] == ' ') {
+				avail.push([row, col]);
+			}
+		}
+	}
+
+	let rand = Math.floor(Math.random() * avail.length);
+	let coord = avail[rand];
+	takeTurn(coord[0], coord[1]);
+}
+
+async function takeTurn(row, col) {
 	if (board[row][col] != ' ') {
-		await pc.alert("That space is taken!", 55, 20, 20);
+		await pc.alert('That space is taken!', 55, 20, 20);
 		return;
 	}
 
@@ -118,20 +172,23 @@ async function btnClicked(row, col) {
 
 	let mark;
 	if (turnX) {
-		pc.text(bigX, x, y);
+		await pc.text(bigX, x, y);
 		mark = 'X';
 	} else {
-		pc.text(bigO, x, y);
+		await pc.text(bigO, x, y);
 		mark = 'O';
 	}
 	board[row][col] = mark;
 	log(board.join('\n'));
 	if (checkWinner(mark)) {
-		await pc.alert("Player " + mark + " won!", 55, 20, 20);
+		await pc.alert('Player ' + mark + ' won!', 55, 20, 20);
 		if (turnX) {
-			scoreX++
+			scoreX++;
+			if (challengeMode && aiLevel <= 1) {
+				aiLevel++;
+			}
 		} else {
-			scoreO++
+			scoreO++;
 		}
 		startNewGame();
 		showScore();
@@ -139,7 +196,7 @@ async function btnClicked(row, col) {
 	}
 
 	if (checkDraw()) {
-		await pc.alert("Draw!", 55, 20, 20);
+		await pc.alert('Draw!', 55, 20, 20);
 		startNewGame();
 		return;
 	}
@@ -149,16 +206,55 @@ async function btnClicked(row, col) {
 		pc.text("Player X's turn", 55, 3);
 	} else {
 		pc.text("Player O's turn", 55, 3);
+		if (singlePlayerMode) aiTurn();
 	}
 }
 
-/* PART A: Make the buttons in the grid */
-for (let row = 0; row < 3; row++) {
-	for (let col = 0; col < 3; col++) {
-		pc.button(bigSpace, gridX + col * 9, gridY + row * 8, () => {
-			btnClicked(row, col);
-		});
+function decideTurn() {
+	if (Math.random() > 0.5) {
+		turnX = true;
+		pc.text("Player X's turn", 55, 3);
+	} else {
+		turnX = false;
+		pc.text("Player O's turn", 55, 3);
+		if (singlePlayerMode) aiTurn();
 	}
 }
-showScore();
-pc.text("Player X's turn", 55, 3);
+
+async function startGame() {
+	await pc.eraseRect(55, 12, 1, 7);
+	/* PART A: Make the buttons in the grid */
+	for (let row = 0; row < 3; row++) {
+		for (let col = 0; col < 3; col++) {
+			pc.button(bigSpace, gridX + col * 9, gridY + row * 8, () => {
+				takeTurn(row, col);
+			});
+		}
+	}
+	showScore();
+	decideTurn();
+}
+
+pc.button('Single Player', 55, 13, async () => {
+	await pc.eraseRect(55, 13, 1, 3);
+	pc.button('Easy', 55, 12, () => {
+		startGame();
+	});
+	pc.button('Medium', 55, 14, () => {
+		aiLevel = 1;
+		startGame();
+	});
+	pc.button('Hard', 55, 16, () => {
+		aiLevel = 2;
+		startGame();
+	});
+	pc.button('Challenge Mode', 55, 18, () => {
+		challengeMode = true;
+		startGame();
+	});
+});
+
+pc.button('Multiplayer', 55, 15, async () => {
+	singlePlayerMode = false;
+	startGame();
+});
